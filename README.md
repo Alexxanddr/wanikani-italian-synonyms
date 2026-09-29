@@ -1,6 +1,6 @@
 # WaniKani Italian Synonyms
 
-Estensione Chrome che traduce in italiano il significato principale degli elementi WaniKani, lo salva negli **User Synonyms** e aggiunge le traduzioni di **Meaning Mnemonic** e **Hint** nelle **Meaning Notes**.
+Estensione Chrome che traduce in italiano il significato principale degli elementi WaniKani, lo salva negli **User Synonyms** e aggiunge le traduzioni delle spiegazioni nei tab **Meaning** e **Reading**.
 
 La traduzione usa la [Translator API integrata in Chrome](https://developer.chrome.com/docs/ai/translator-api): non richiede chiavi API, non prevede costi e non invia il testo a servizi di traduzione esterni.
 
@@ -10,6 +10,7 @@ La traduzione usa la [Translator API integrata in Chrome](https://developer.chro
 - Traduce il significato principale dall'inglese all'italiano.
 - Aggiunge la traduzione tramite l'interfaccia **User Synonyms** di WaniKani.
 - Traduce Meaning Mnemonic o Meaning Explanation e, quando presente, l'Hint; li salva nelle Meaning Notes in blocchi riconoscibili.
+- Traduce Reading Mnemonic o Reading Explanation e, quando presente, l'Hint nelle Reading Notes.
 - Non modifica le Meaning Notes quando contengono già una nota personale.
 - Rispetta automaticamente il limite di 500 caratteri imposto da WaniKani.
 - Funziona durante la navigazione interna senza richiedere un refresh per ogni elemento.
@@ -44,11 +45,12 @@ Durante una lezione apri la scheda **Meaning**. Quando appare la sezione **User 
 4. inserisce e salva la traduzione;
 5. chiude la finestra e mostra l'esito sotto **User Synonyms**.
 
-Il popup dell'estensione contiene tre opzioni:
+Il popup dell'estensione contiene quattro opzioni:
 
 - **Estensione attiva**: abilita o disabilita tutta l'estensione.
 - **Aggiungi automaticamente**: controlla l'inserimento automatico dei sinonimi.
 - **Traduci Mnemonic e Hint nelle note**: controlla la compilazione automatica delle Meaning Notes.
+- **Traduci anche le Reading Notes**: controlla la traduzione automatica del tab Reading.
 
 ## Privacy
 

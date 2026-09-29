@@ -1,5 +1,6 @@
 #wk-italian-synonyms-status,
-#wk-italian-notes-status {
+#wk-italian-notes-status,
+#wk-italian-reading-notes-status {
   margin-top: 0.6rem;
   padding: 0.55rem 0.75rem;
   border-radius: 0.35rem;
@@ -9,13 +10,15 @@
 }
 
 #wk-italian-synonyms-status[data-state="success"],
-#wk-italian-notes-status[data-state="success"] {
+#wk-italian-notes-status[data-state="success"],
+#wk-italian-reading-notes-status[data-state="success"] {
   background: #e8f7ed;
   color: #176b36;
 }
 
 #wk-italian-synonyms-status[data-state="error"],
-#wk-italian-notes-status[data-state="error"] {
+#wk-italian-notes-status[data-state="error"],
+#wk-italian-reading-notes-status[data-state="error"] {
   background: #fff0f0;
   color: #9a2525;
 }

@@ -3,7 +3,8 @@
 
   const MARKER_ID = "wk-italian-synonyms-status";
   const NOTES_MARKER_ID = "wk-italian-notes-status";
-  const DEFAULTS = { enabled: true, autoAdd: true, autoNotes: true };
+  const READING_NOTES_MARKER_ID = "wk-italian-reading-notes-status";
+  const DEFAULTS = { enabled: true, autoAdd: true, autoNotes: true, autoReadingNotes: true };
   const NOTE_MAX_LENGTH = 500;
   const STABLE_FOR_MS = 800;
   const UI_LABELS = new Set([
@@ -126,6 +127,16 @@
     };
   }
 
+  function getReadingContent() {
+    const mnemonic = textFollowingHeading("Reading Mnemonic");
+    const explanation = textFollowingHeading("Reading Explanation");
+    return {
+      explanation: mnemonic || explanation,
+      explanationLabel: mnemonic ? "MNEMONICO DI LETTURA" : "SPIEGAZIONE DELLA LETTURA",
+      hint: textFollowingHeading("Hint")
+    };
+  }
+
   function currentSynonyms(section) {
     if (!section) return [];
     return [...section.querySelectorAll("li,button,span,a")]
@@ -163,13 +174,13 @@
     status.textContent = message;
   }
 
-  function setNotesStatus(message, state = "working") {
-    const heading = findHeading("Meaning Notes");
+  function setNotesStatus(noteHeading, markerId, message, state = "working") {
+    const heading = findHeading(noteHeading);
     if (!heading) return;
-    let status = document.getElementById(NOTES_MARKER_ID);
+    let status = document.getElementById(markerId);
     if (!status) {
       status = document.createElement("div");
-      status.id = NOTES_MARKER_ID;
+      status.id = markerId;
       heading.insertAdjacentElement("afterend", status);
     }
     status.dataset.state = state;
@@ -269,9 +280,9 @@
     return `${prefix}${truncateAtWord(explanation, explanationBudget)}${divider}${truncateAtWord(hint, hintBudget)}`;
   }
 
-  async function addMeaningNotes(explanation, hint, explanationLabel) {
-    const heading = findHeading("Meaning Notes");
-    if (!heading) throw new Error("Sezione Meaning Notes non trovata.");
+  async function addNotes(noteHeading, markerId, explanation, hint, explanationLabel) {
+    const heading = findHeading(noteHeading);
+    if (!heading) throw new Error(`Sezione ${noteHeading} non trovata.`);
     const end = nextHeading(heading, true);
     const controls = () => [...document.querySelectorAll("button,a,input,textarea")]
       .filter((element) => visible(element) && isBetween(element, heading, end));
@@ -280,13 +291,13 @@
     );
 
     if (!addButton) {
-      setNotesStatus("Nota già presente: nessuna modifica effettuata.", "success");
+      setNotesStatus(noteHeading, markerId, "Nota già presente: nessuna modifica effettuata.", "success");
       return;
     }
 
     addButton.click();
     const input = await waitFor(() => controls().find((element) => element instanceof HTMLTextAreaElement));
-    if (!input) throw new Error("Campo Meaning Notes non trovato.");
+    if (!input) throw new Error(`Campo ${noteHeading} non trovato.`);
 
     const note = composeNote(explanation, hint, explanationLabel);
     input.focus();
@@ -299,26 +310,31 @@
     const save = controls().find((element) =>
       /^save$/i.test(normalize(element.textContent || element.value || ""))
     );
-    if (!save) throw new Error("Pulsante Save di Meaning Notes non trovato.");
+    if (!save) throw new Error(`Pulsante Save di ${noteHeading} non trovato.`);
     save.click();
     await waitFor(() => !visible(input));
-    setNotesStatus(hint ? "Spiegazione e Hint tradotti e aggiunti." : "Spiegazione tradotta e aggiunta.", "success");
+    setNotesStatus(
+      noteHeading,
+      markerId,
+      hint ? "Spiegazione e Hint tradotti e aggiunti." : "Spiegazione tradotta e aggiunta.",
+      "success"
+    );
   }
 
   async function processItem() {
     if (processing) return;
     if (Date.now() < retryAfter) return;
     const settings = await chrome.storage.sync.get(DEFAULTS);
-    if (!settings.enabled || (!settings.autoAdd && !settings.autoNotes)) return;
+    if (!settings.enabled || (!settings.autoAdd && !settings.autoNotes && !settings.autoReadingNotes)) return;
 
     const section = getSynonymsSection();
     const meaning = getPrimaryMeaning();
     const subject = getSubject();
     const { explanation, explanationLabel, hint } = getMeaningContent();
+    const reading = getReadingContent();
     if (!meaning || !subject) return;
-    if (settings.autoAdd && !section) return;
 
-    const key = `${location.pathname}|${subject}|${meaning}`;
+    const key = `${location.pathname}|${location.hash}|${subject}|${meaning}`;
     if (key !== candidateKey) {
       candidateKey = key;
       candidateSince = Date.now();
@@ -328,7 +344,7 @@
     if (key === lastKey) return;
     processing = true;
     try {
-      if (settings.autoAdd) {
+      if (settings.autoAdd && section) {
         setStatus(`Traduzione di “${meaning}”…`);
         const italian = await translate(meaning);
         if (!italian) throw new Error("La traduzione restituita è vuota.");
@@ -338,17 +354,44 @@
         await addSynonym(italian, section);
       }
 
-      if (settings.autoNotes && explanation) {
-        setNotesStatus(hint ? "Traduzione della spiegazione e dell’Hint…" : "Traduzione della spiegazione…");
+      if (settings.autoNotes && explanation && findHeading("Meaning Notes")) {
+        setNotesStatus(
+          "Meaning Notes",
+          NOTES_MARKER_ID,
+          hint ? "Traduzione della spiegazione e dell’Hint…" : "Traduzione della spiegazione…"
+        );
         const italianExplanation = await translate(explanation);
         const italianHint = hint ? await translate(hint) : "";
-        await addMeaningNotes(italianExplanation, italianHint, explanationLabel);
+        await addNotes("Meaning Notes", NOTES_MARKER_ID, italianExplanation, italianHint, explanationLabel);
+      }
+
+      if (settings.autoReadingNotes && reading.explanation && findHeading("Reading Notes")) {
+        setNotesStatus(
+          "Reading Notes",
+          READING_NOTES_MARKER_ID,
+          reading.hint ? "Traduzione della lettura e dell’Hint…" : "Traduzione della lettura…"
+        );
+        const italianReading = await translate(reading.explanation);
+        const italianReadingHint = reading.hint ? await translate(reading.hint) : "";
+        await addNotes(
+          "Reading Notes",
+          READING_NOTES_MARKER_ID,
+          italianReading,
+          italianReadingHint,
+          reading.explanationLabel
+        );
       }
       lastKey = key;
     } catch (error) {
       console.error("[WaniKani Italian Synonyms]", error);
       setStatus(error instanceof Error ? error.message : String(error), "error");
-      setNotesStatus(error instanceof Error ? error.message : String(error), "error");
+      setNotesStatus("Meaning Notes", NOTES_MARKER_ID, error instanceof Error ? error.message : String(error), "error");
+      setNotesStatus(
+        "Reading Notes",
+        READING_NOTES_MARKER_ID,
+        error instanceof Error ? error.message : String(error),
+        "error"
+      );
       retryAfter = Date.now() + 5000;
     } finally {
       processing = false;

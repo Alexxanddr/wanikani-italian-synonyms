@@ -4,6 +4,18 @@ Il formato segue [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) e il p
 
 ## [Unreleased]
 
+## [0.4.0] - 2026-09-29
+
+### Added
+
+- Traduzione automatica di Reading Explanation o Reading Mnemonic nelle Reading Notes.
+- Supporto all'Hint del tab Reading quando presente.
+- Interruttore dedicato nel popup per le Reading Notes.
+
+### Fixed
+
+- Elaborazione distinta dei tab Meaning e Reading dello stesso elemento.
+
 ## [0.3.1] - 2026-09-29
 
 ### Fixed
