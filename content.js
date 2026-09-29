@@ -142,22 +142,26 @@
       return;
     }
 
-    const addButton = findAddButton(section);
-    if (!addButton) throw new Error("Pulsante Add/Manage Synonyms non trovato.");
-    addButton.click();
+    let inlineInput = [...section.querySelectorAll("#synonym,input[type='text'],input:not([type]),textarea")].find(visible);
+    if (!inlineInput) {
+      const addButton = findAddButton(section);
+      if (!addButton) throw new Error("Pulsante Add/Manage Synonyms non trovato.");
+      addButton.click();
+    }
 
-    const dialog = await waitFor(() => {
-      const exactDialog = document.querySelector("#modal");
-      return visible(exactDialog)
-        ? exactDialog
-        : [...document.querySelectorAll("[role='dialog'],dialog,.modal")].find(visible);
+    const editor = await waitFor(() => {
+      const modal = document.querySelector("#modal");
+      if (visible(modal)) return modal;
+      inlineInput = [...section.querySelectorAll("#synonym,input[type='text'],input:not([type]),textarea")].find(visible);
+      if (inlineInput) return section;
+      return [...document.querySelectorAll("[role='dialog'],dialog,.modal")].find(visible);
     });
-    if (!dialog) throw new Error("Finestra dei sinonimi non trovata.");
+    if (!editor) throw new Error("Editor dei sinonimi non trovato.");
 
-    const exactInput = dialog.querySelector("#synonym");
+    const exactInput = editor.querySelector("#synonym");
     const input = visible(exactInput)
       ? exactInput
-      : [...dialog.querySelectorAll("input[type='text'],input:not([type]),textarea")].find(visible);
+      : [...editor.querySelectorAll("input[type='text'],input:not([type]),textarea")].find(visible);
     if (!input) throw new Error("Campo del sinonimo non trovato.");
 
     input.focus();
@@ -167,11 +171,11 @@
     input.dispatchEvent(new Event("input", { bubbles: true }));
     input.dispatchEvent(new Event("change", { bubbles: true }));
 
-    const exactConfirm = dialog.querySelector("form fieldset:nth-of-type(2) button");
+    const exactConfirm = editor.querySelector("form fieldset:nth-of-type(2) button");
     const confirm = visible(exactConfirm)
       ? exactConfirm
-      : [...dialog.querySelectorAll("button,input[type='submit']")].find((element) =>
-      visible(element) && (/^(add|save)$/i.test(normalize(element.textContent || "")) || element.type === "submit")
+      : [...editor.querySelectorAll("button,a,input[type='submit']")].find((element) =>
+      visible(element) && (/^(add|save)$/i.test(normalize(element.textContent || element.value || "")) || element.type === "submit")
     );
     if (!confirm) throw new Error("Pulsante Add/Save non trovato.");
     confirm.click();
@@ -179,7 +183,9 @@
     await waitFor(() => currentSynonyms(section).some((value) =>
       value.localeCompare(translation, "it", { sensitivity: "base" }) === 0
     ));
-    const closeButton = dialog.querySelector(".user-synonyms__close-button a, .user-synonyms__close-button button");
+    const closeButton = [
+      ...editor.querySelectorAll(".user-synonyms__close-button a, .user-synonyms__close-button button, button, a")
+    ].find((element) => visible(element) && /^(done|close)$/i.test(normalize(element.textContent || "")));
     if (visible(closeButton)) closeButton.click();
     setStatus(`Aggiunto: ${translation}`, "success");
   }

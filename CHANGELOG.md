@@ -4,6 +4,13 @@ Il formato segue [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) e il p
 
 ## [Unreleased]
 
+## [0.2.1] - 2026-09-29
+
+### Fixed
+
+- Supporto per il nuovo editor dei sinonimi mostrato direttamente nella sezione `User Synonyms`, oltre alla precedente finestra modale.
+- Riconoscimento dei controlli `Add` e `Done` quando WaniKani li presenta come link.
+
 ## [0.2.0] - 2026-09-29
 
 ### Added
