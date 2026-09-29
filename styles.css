@@ -1,0 +1,18 @@
+#wk-italian-synonyms-status {
+  margin-top: 0.6rem;
+  padding: 0.55rem 0.75rem;
+  border-radius: 0.35rem;
+  background: #eef6ff;
+  color: #174d7c;
+  font-size: 0.9rem;
+}
+
+#wk-italian-synonyms-status[data-state="success"] {
+  background: #e8f7ed;
+  color: #176b36;
+}
+
+#wk-italian-synonyms-status[data-state="error"] {
+  background: #fff0f0;
+  color: #9a2525;
+}

@@ -1,0 +1,20 @@
+{
+  "manifest_version": 3,
+  "name": "WaniKani Italian Synonyms",
+  "version": "0.2.0",
+  "description": "Traduce in italiano il significato degli elementi WaniKani e lo aggiunge ai sinonimi utente.",
+  "permissions": ["storage"],
+  "host_permissions": ["https://www.wanikani.com/*", "https://wanikani.com/*"],
+  "content_scripts": [
+    {
+      "matches": ["https://www.wanikani.com/*", "https://wanikani.com/*"],
+      "js": ["content.js"],
+      "css": ["styles.css"],
+      "run_at": "document_idle"
+    }
+  ],
+  "action": {
+    "default_title": "WaniKani Italian Synonyms",
+    "default_popup": "popup.html"
+  }
+}
