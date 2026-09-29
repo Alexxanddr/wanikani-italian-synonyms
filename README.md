@@ -9,7 +9,7 @@ La traduzione usa la [Translator API integrata in Chrome](https://developer.chro
 - Rileva kanji, vocaboli e radicali durante le lezioni WaniKani.
 - Traduce il significato principale dall'inglese all'italiano.
 - Aggiunge la traduzione tramite l'interfaccia **User Synonyms** di WaniKani.
-- Traduce Meaning Mnemonic e Hint e li salva nelle Meaning Notes, separati e riconoscibili.
+- Traduce Meaning Mnemonic o Meaning Explanation e, quando presente, l'Hint; li salva nelle Meaning Notes in blocchi riconoscibili.
 - Non modifica le Meaning Notes quando contengono già una nota personale.
 - Rispetta automaticamente il limite di 500 caratteri imposto da WaniKani.
 - Funziona durante la navigazione interna senza richiedere un refresh per ogni elemento.

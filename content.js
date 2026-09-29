@@ -117,8 +117,11 @@
   }
 
   function getMeaningContent() {
+    const mnemonic = textFollowingHeading("Meaning Mnemonic");
+    const explanation = textFollowingHeading("Meaning Explanation");
     return {
-      mnemonic: textFollowingHeading("Meaning Mnemonic"),
+      explanation: mnemonic || explanation,
+      explanationLabel: mnemonic ? "MNEMONICO" : "SPIEGAZIONE",
       hint: textFollowingHeading("Hint")
     };
   }
@@ -253,19 +256,20 @@
     return `${shortened.slice(0, boundary > maximum * 0.7 ? boundary : shortened.length).trim()}…`;
   }
 
-  function composeNote(mnemonic, hint) {
-    const prefix = "MNEMONICO:\n";
+  function composeNote(explanation, hint, explanationLabel) {
+    const prefix = `${explanationLabel}:\n`;
+    if (!hint) return `${prefix}${truncateAtWord(explanation, NOTE_MAX_LENGTH - prefix.length)}`;
     const divider = "\n\n──────────\n\nSUGGERIMENTO:\n";
     const available = NOTE_MAX_LENGTH - prefix.length - divider.length;
-    const total = mnemonic.length + hint.length;
-    if (total <= available) return `${prefix}${mnemonic}${divider}${hint}`;
+    const total = explanation.length + hint.length;
+    if (total <= available) return `${prefix}${explanation}${divider}${hint}`;
 
     const hintBudget = Math.max(100, Math.round(available * hint.length / total));
-    const mnemonicBudget = available - hintBudget;
-    return `${prefix}${truncateAtWord(mnemonic, mnemonicBudget)}${divider}${truncateAtWord(hint, hintBudget)}`;
+    const explanationBudget = available - hintBudget;
+    return `${prefix}${truncateAtWord(explanation, explanationBudget)}${divider}${truncateAtWord(hint, hintBudget)}`;
   }
 
-  async function addMeaningNotes(mnemonic, hint) {
+  async function addMeaningNotes(explanation, hint, explanationLabel) {
     const heading = findHeading("Meaning Notes");
     if (!heading) throw new Error("Sezione Meaning Notes non trovata.");
     const end = nextHeading(heading, true);
@@ -284,7 +288,7 @@
     const input = await waitFor(() => controls().find((element) => element instanceof HTMLTextAreaElement));
     if (!input) throw new Error("Campo Meaning Notes non trovato.");
 
-    const note = composeNote(mnemonic, hint);
+    const note = composeNote(explanation, hint, explanationLabel);
     input.focus();
     const setter = Object.getOwnPropertyDescriptor(HTMLTextAreaElement.prototype, "value")?.set;
     if (setter) setter.call(input, note);
@@ -298,7 +302,7 @@
     if (!save) throw new Error("Pulsante Save di Meaning Notes non trovato.");
     save.click();
     await waitFor(() => !visible(input));
-    setNotesStatus("Mnemonic e Hint tradotti e aggiunti.", "success");
+    setNotesStatus(hint ? "Spiegazione e Hint tradotti e aggiunti." : "Spiegazione tradotta e aggiunta.", "success");
   }
 
   async function processItem() {
@@ -310,10 +314,9 @@
     const section = getSynonymsSection();
     const meaning = getPrimaryMeaning();
     const subject = getSubject();
-    const { mnemonic, hint } = getMeaningContent();
+    const { explanation, explanationLabel, hint } = getMeaningContent();
     if (!meaning || !subject) return;
     if (settings.autoAdd && !section) return;
-    if (settings.autoNotes && (!mnemonic || !hint)) return;
 
     const key = `${location.pathname}|${subject}|${meaning}`;
     if (key !== candidateKey) {
@@ -335,13 +338,11 @@
         await addSynonym(italian, section);
       }
 
-      if (settings.autoNotes) {
-        setNotesStatus("Traduzione di Mnemonic e Hint…");
-        const [italianMnemonic, italianHint] = await Promise.all([
-          translate(mnemonic),
-          translate(hint)
-        ]);
-        await addMeaningNotes(italianMnemonic, italianHint);
+      if (settings.autoNotes && explanation) {
+        setNotesStatus(hint ? "Traduzione della spiegazione e dell’Hint…" : "Traduzione della spiegazione…");
+        const italianExplanation = await translate(explanation);
+        const italianHint = hint ? await translate(hint) : "";
+        await addMeaningNotes(italianExplanation, italianHint, explanationLabel);
       }
       lastKey = key;
     } catch (error) {
