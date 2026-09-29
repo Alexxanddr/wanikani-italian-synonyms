@@ -4,6 +4,15 @@ Il formato segue [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) e il p
 
 ## [Unreleased]
 
+## [0.3.0] - 2026-09-29
+
+### Added
+
+- Traduzione automatica di Meaning Mnemonic e Hint nelle Meaning Notes.
+- Separazione visiva delle due traduzioni e rispetto del limite di 500 caratteri.
+- Impostazione dedicata nel popup per attivare o disattivare le note tradotte.
+- Protezione delle Meaning Notes già compilate dall'utente.
+
 ## [0.2.1] - 2026-09-29
 
 ### Fixed

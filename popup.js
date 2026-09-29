@@ -1,4 +1,4 @@
-const defaults = { enabled: true, autoAdd: true };
+const defaults = { enabled: true, autoAdd: true, autoNotes: true };
 
 async function load() {
   const settings = await chrome.storage.sync.get(defaults);

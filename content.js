@@ -2,7 +2,9 @@
   "use strict";
 
   const MARKER_ID = "wk-italian-synonyms-status";
-  const DEFAULTS = { enabled: true, autoAdd: true };
+  const NOTES_MARKER_ID = "wk-italian-notes-status";
+  const DEFAULTS = { enabled: true, autoAdd: true, autoNotes: true };
+  const NOTE_MAX_LENGTH = 500;
   const STABLE_FOR_MS = 800;
   const UI_LABELS = new Set([
     "primary",
@@ -80,6 +82,47 @@
     return heading?.closest("section,article,div") || null;
   }
 
+  function findHeading(label) {
+    return findByText("h1,h2,h3,h4,h5,h6", new RegExp(`^${label}$`, "i"));
+  }
+
+  function headingLevel(heading) {
+    return Number(heading?.tagName.slice(1)) || 6;
+  }
+
+  function nextHeading(heading, sameOrHigherOnly = false) {
+    const level = headingLevel(heading);
+    return [...document.querySelectorAll("h1,h2,h3,h4,h5,h6")].find((candidate) =>
+      heading.compareDocumentPosition(candidate) & Node.DOCUMENT_POSITION_FOLLOWING &&
+      (!sameOrHigherOnly || headingLevel(candidate) <= level)
+    ) || null;
+  }
+
+  function isBetween(element, start, end) {
+    if (!element || !start) return false;
+    const followsStart = Boolean(start.compareDocumentPosition(element) & Node.DOCUMENT_POSITION_FOLLOWING);
+    const precedesEnd = !end || Boolean(element.compareDocumentPosition(end) & Node.DOCUMENT_POSITION_FOLLOWING);
+    return followsStart && precedesEnd;
+  }
+
+  function textFollowingHeading(label) {
+    const heading = findHeading(label);
+    if (!heading) return "";
+    const end = nextHeading(heading);
+    const range = document.createRange();
+    range.setStartAfter(heading);
+    if (end) range.setEndBefore(end);
+    else range.setEndAfter(document.body.lastChild || document.body);
+    return normalize(range.toString());
+  }
+
+  function getMeaningContent() {
+    return {
+      mnemonic: textFollowingHeading("Meaning Mnemonic"),
+      hint: textFollowingHeading("Hint")
+    };
+  }
+
   function currentSynonyms(section) {
     if (!section) return [];
     return [...section.querySelectorAll("li,button,span,a")]
@@ -112,6 +155,19 @@
       status = document.createElement("div");
       status.id = MARKER_ID;
       section.append(status);
+    }
+    status.dataset.state = state;
+    status.textContent = message;
+  }
+
+  function setNotesStatus(message, state = "working") {
+    const heading = findHeading("Meaning Notes");
+    if (!heading) return;
+    let status = document.getElementById(NOTES_MARKER_ID);
+    if (!status) {
+      status = document.createElement("div");
+      status.id = NOTES_MARKER_ID;
+      heading.insertAdjacentElement("afterend", status);
     }
     status.dataset.state = state;
     status.textContent = message;
@@ -190,16 +246,74 @@
     setStatus(`Aggiunto: ${translation}`, "success");
   }
 
+  function truncateAtWord(text, maximum) {
+    if (text.length <= maximum) return text;
+    const shortened = text.slice(0, Math.max(0, maximum - 1));
+    const boundary = shortened.lastIndexOf(" ");
+    return `${shortened.slice(0, boundary > maximum * 0.7 ? boundary : shortened.length).trim()}…`;
+  }
+
+  function composeNote(mnemonic, hint) {
+    const prefix = "MNEMONICO:\n";
+    const divider = "\n\n──────────\n\nSUGGERIMENTO:\n";
+    const available = NOTE_MAX_LENGTH - prefix.length - divider.length;
+    const total = mnemonic.length + hint.length;
+    if (total <= available) return `${prefix}${mnemonic}${divider}${hint}`;
+
+    const hintBudget = Math.max(100, Math.round(available * hint.length / total));
+    const mnemonicBudget = available - hintBudget;
+    return `${prefix}${truncateAtWord(mnemonic, mnemonicBudget)}${divider}${truncateAtWord(hint, hintBudget)}`;
+  }
+
+  async function addMeaningNotes(mnemonic, hint) {
+    const heading = findHeading("Meaning Notes");
+    if (!heading) throw new Error("Sezione Meaning Notes non trovata.");
+    const end = nextHeading(heading, true);
+    const controls = () => [...document.querySelectorAll("button,a,input,textarea")]
+      .filter((element) => visible(element) && isBetween(element, heading, end));
+    const addButton = controls().find((element) =>
+      /^add note$/i.test(normalize(element.textContent || element.value || ""))
+    );
+
+    if (!addButton) {
+      setNotesStatus("Nota già presente: nessuna modifica effettuata.", "success");
+      return;
+    }
+
+    addButton.click();
+    const input = await waitFor(() => controls().find((element) => element instanceof HTMLTextAreaElement));
+    if (!input) throw new Error("Campo Meaning Notes non trovato.");
+
+    const note = composeNote(mnemonic, hint);
+    input.focus();
+    const setter = Object.getOwnPropertyDescriptor(HTMLTextAreaElement.prototype, "value")?.set;
+    if (setter) setter.call(input, note);
+    else input.value = note;
+    input.dispatchEvent(new Event("input", { bubbles: true }));
+    input.dispatchEvent(new Event("change", { bubbles: true }));
+
+    const save = controls().find((element) =>
+      /^save$/i.test(normalize(element.textContent || element.value || ""))
+    );
+    if (!save) throw new Error("Pulsante Save di Meaning Notes non trovato.");
+    save.click();
+    await waitFor(() => !visible(input));
+    setNotesStatus("Mnemonic e Hint tradotti e aggiunti.", "success");
+  }
+
   async function processItem() {
     if (processing) return;
     if (Date.now() < retryAfter) return;
     const settings = await chrome.storage.sync.get(DEFAULTS);
-    if (!settings.enabled || !settings.autoAdd) return;
+    if (!settings.enabled || (!settings.autoAdd && !settings.autoNotes)) return;
 
     const section = getSynonymsSection();
     const meaning = getPrimaryMeaning();
     const subject = getSubject();
-    if (!section || !meaning || !subject) return;
+    const { mnemonic, hint } = getMeaningContent();
+    if (!meaning || !subject) return;
+    if (settings.autoAdd && !section) return;
+    if (settings.autoNotes && (!mnemonic || !hint)) return;
 
     const key = `${location.pathname}|${subject}|${meaning}`;
     if (key !== candidateKey) {
@@ -211,17 +325,29 @@
     if (key === lastKey) return;
     processing = true;
     try {
-      setStatus(`Traduzione di “${meaning}”…`);
-      const italian = await translate(meaning);
-      if (!italian) throw new Error("La traduzione restituita è vuota.");
-      if (INVALID_TRANSLATIONS.has(italian.toLocaleLowerCase("it"))) {
-        throw new Error(`Traduzione ignorata perché non valida: “${italian}”.`);
+      if (settings.autoAdd) {
+        setStatus(`Traduzione di “${meaning}”…`);
+        const italian = await translate(meaning);
+        if (!italian) throw new Error("La traduzione restituita è vuota.");
+        if (INVALID_TRANSLATIONS.has(italian.toLocaleLowerCase("it"))) {
+          throw new Error(`Traduzione ignorata perché non valida: “${italian}”.`);
+        }
+        await addSynonym(italian, section);
       }
-      await addSynonym(italian, section);
+
+      if (settings.autoNotes) {
+        setNotesStatus("Traduzione di Mnemonic e Hint…");
+        const [italianMnemonic, italianHint] = await Promise.all([
+          translate(mnemonic),
+          translate(hint)
+        ]);
+        await addMeaningNotes(italianMnemonic, italianHint);
+      }
       lastKey = key;
     } catch (error) {
       console.error("[WaniKani Italian Synonyms]", error);
       setStatus(error instanceof Error ? error.message : String(error), "error");
+      setNotesStatus(error instanceof Error ? error.message : String(error), "error");
       retryAfter = Date.now() + 5000;
     } finally {
       processing = false;
